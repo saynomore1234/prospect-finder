@@ -1,40 +1,38 @@
 const express = require('express');
 const app = express();
-const scrapeLinkedInSearch = require('./scraper'); // your scraping logic
+const scrapeBing = require('./scrapers/scrapeBing'); // Keep only Bing scraper
 
-// Fallback queries
-const queryTemplates = [
-  'site:linkedin.com/in "SEO Expert" "Philippines"',
-  'site:linkedin.com/in "IT Specialist" "Philippines"',
-  'site:linkedin.com/in "Freelance Marketing" "Philippines"',
-  'site:linkedin.com/in "Virtual Assistant" "Philippines"',
-  'site:linkedin.com/in "Software Engineer" "Philippines"',
-  'site:linkedin.com/in "UI/UX Designer" "Philippines"',
-];
-
+// Root route
 app.get('/', (req, res) => {
   res.send('Prospect Finder API is running 🚀');
 });
 
+// Main search route
 app.get('/search', async (req, res) => {
-  let searchQuery = req.query.q;
+  const query = req.query.q;
 
-  // Use fallback if no query provided
-  if (!searchQuery) {
-    const randomIndex = Math.floor(Math.random() * queryTemplates.length);
-    searchQuery = queryTemplates[randomIndex];
+  if (!query) {
+    return res.status(400).json({ error: "Missing search query (q) parameter" });
   }
 
   try {
-    const result = await scrapeLinkedInSearch(searchQuery);
-    res.json({ result });
+    // Only call Bing scraper now
+    const results = await scrapeBing(query);
+
+    res.json({
+      query,
+      engineUsed: 'bing',
+      engine: 'bing',
+      totalFound: results.length,
+      results,
+    });
   } catch (error) {
-    console.error('Scraping error:', error.message);
+    console.error('❌ Scraping failed:', error.message);
     res.status(500).json({ error: 'Something went wrong during scraping.' });
   }
 });
 
 const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is listening on port ${PORT}`);
+  console.log(`✅ Server is running at http://localhost:${PORT}`);
 });

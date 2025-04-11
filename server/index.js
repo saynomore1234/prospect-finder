@@ -1,38 +1,41 @@
-const express = require('express');
-const app = express();
-const scrapeBing = require('./scrapers/scrapeBing'); // Keep only Bing scraper
+// index.js
+const express = require('express'); // Load Express.js
+const scrapeBing = require('./scrapers/scrapeProspects'); // Only use Bing scraper now
 
-// Root route
+const app = express();
+const PORT = 3000;
+
+// Root route to check if the API is alive
 app.get('/', (req, res) => {
-  res.send('Prospect Finder API is running 🚀');
+  res.send('Prospect Finder API is running ✅');
 });
 
-// Main search route
+// Main search endpoint: GET /search?q=some+keyword
 app.get('/search', async (req, res) => {
-  const query = req.query.q;
+  const query = req.query.q;         // Read search query
+  const engine = 'bing';             // Force engine to Bing only
 
   if (!query) {
-    return res.status(400).json({ error: "Missing search query (q) parameter" });
+    return res.status(400).json({ error: 'Missing search query (?q=your+search)' });
   }
 
   try {
-    // Only call Bing scraper now
-    const results = await scrapeBing(query);
+    const result = await scrapeBing(query); // Call the Bing scraper
 
+    // Return the search results in a clean JSON format
     res.json({
       query,
-      engineUsed: 'bing',
-      engine: 'bing',
-      totalFound: results.length,
-      results,
+      engineUsed: engine,
+      ...result // Spread { engine, totalFound, results }
     });
-  } catch (error) {
-    console.error('❌ Scraping failed:', error.message);
-    res.status(500).json({ error: 'Something went wrong during scraping.' });
+
+  } catch (err) {
+    console.error('❌ Scraping error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
-const PORT = 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server is running at http://localhost:${PORT}`);
+// Start the Express server on port 3000
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });

@@ -1,35 +1,55 @@
 // scrapeProspects.js
 // Main orchestrator that handles the full prospect search + enrichment flow
 
-const { searchBingPages } = require('./engines/bingEngine'); // Bing search engine logic (pagination + results)
-const { enrichFromPage } = require('./enrich/enrichFromPage'); // Enrichment logic: fetch additional data from each result page
+const puppeteer = require('puppeteer');
+const scrapeBingPages = require('./engines/bingEngine');
+const enrichInBatches = require('./enrich/enrichInBatches');
+const filterByQuery = require('./enrich/filterByQuery');
 
-// Main function to search, scrape, enrich, and return full results
-async function scrapeProspects(query) {
+/**
+ * Main function to search, filter, enrich, and return full results
+ * @param {string} query - User's search term (e.g., "seo expert philippines")
+ * @param {object} options - Optional filters like industry/region
+ * @returns {object} - Final enriched results object
+ */
+async function scrapeProspects(query, options = {}) {
   console.log(`[scrapeProspects] Starting scrape for query: "${query}"`);
 
-  // Get results from Bing (default: 3 pages)
-  const { browser, results } = await searchBingPages(query, 3);
-  console.log(`[scrapeProspects] Retrieved ${results.length} results from Bing`);
+  // Launch browser once for all tasks
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
 
-  const finalResults = [];
+  try {
+    // Step 1: Scrape Bing search results (default 3 pages)
+    const rawResults = await scrapeBingPages(browser, query);
+    console.log(`[scrapeProspects] Scraped ${rawResults.length} raw results from Bing`);
 
-  // Loop through each search result and enrich it
-  for (const [index, result] of results.entries()) {
-    console.log(`[scrapeProspects] Enriching result ${index + 1}/${results.length}: ${result.link}`);
-    const enriched = await enrichFromPage(browser, result);
-    finalResults.push(enriched);
+    // Step 2: Filter the results based on keyword/industry/region match
+    const filteredResults = filterByQuery(rawResults, {
+      keyword: query,
+      industry: options.industry,
+      region: options.region
+    });
+    console.log(`[scrapeProspects] ${filteredResults.length} results passed relevance filtering`);
+
+    // Step 3: Enrich each filtered result in batches of 5
+    const enrichedResults = await enrichInBatches(browser, filteredResults, 5);
+    console.log(`[scrapeProspects] Enrichment complete. Final results: ${enrichedResults.length}`);
+
+    // Return data in expected response format
+    return {
+      engine: 'bing',
+      totalFound: enrichedResults.length,
+      results: enrichedResults
+    };
+  } catch (err) {
+    console.error('[scrapeProspects] ❌ Error during scraping:', err);
+    throw err;
+  } finally {
+    await browser.close();
   }
-
-  await browser.close(); // Close the Puppeteer browser after all tabs done
-  console.log(`[scrapeProspects] Completed scraping. Total enriched results: ${finalResults.length}`);
-
-  // Return the final structured response
-  return {
-    engine: 'bing',
-    totalFound: finalResults.length,
-    results: finalResults
-  };
 }
 
-module.exports = scrapeProspects; // Export so index.js can use it
+module.exports = scrapeProspects;

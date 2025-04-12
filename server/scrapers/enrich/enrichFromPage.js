@@ -43,4 +43,4 @@ async function enrichFromPage(browser, result) {
   }
 }
 
-module.exports = { enrichFromPage };
+module.exports = enrichFromPage;

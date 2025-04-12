@@ -20,6 +20,18 @@ async function scrapeBingPages(browser, query, filterFn) {
 
   while (keepGoing && page < maxPages) {
     const tab = await browser.newPage();
+    // 🥷 Stealth mode injection – mask Puppeteer fingerprinting
+  await tab.evaluateOnNewDocument(() => {
+  Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+  Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+  Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4] });
+  window.chrome = {
+    runtime: {},
+    // Optional: mimic Chrome-specific props
+  };
+});
+
     await tab.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36');
 
     const offset = page * 10 + 1;

@@ -3,7 +3,7 @@
 
 const puppeteer = require('puppeteer');
 const scrapeBingPages = require('./engines/bingEngine');
-const enrichInBatches = require('./enrich/enrichInBatches');
+const { enrichInBatches } = require('./enrich/enrichInBatches');
 const filterByQuery = require('./enrich/filterByQuery');
 
 /**

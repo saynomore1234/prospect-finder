@@ -1,31 +1,37 @@
 // extractContacts.js
-// Extracts emails and phone numbers from a string (international support)
+// Extract emails and phone numbers from a given text using regex
 
-function extractContacts(text) {
+const extractContacts = (text) => {
+  console.log("[extractContacts] Raw input text:", text.slice(0, 300), '...'); // Print preview of content
+
   const emails = [];
   const phones = [];
 
-  // Loose but accurate email matching
-  const emailRegex = /[\w.-]+@[\w.-]+\.\w+/g;
+  // Regex for email (loose but effective)
+  const emailRegex = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
 
-  // International phone regex (e.g., +1 123-456-7890 or 123.456.7890 or (123) 456 7890)
-  const phoneRegex = /(?:\+?\d{1,3})?[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g;
+  // Regex for phones (international + local, loose and flexible)
+  const phoneRegex = /(?:\+?\d{1,4}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}/g;
 
-  // Match raw patterns
-  const rawEmails = text.match(emailRegex) || [];
-  const rawPhones = text.match(phoneRegex) || [];
+  // Extract emails
+  const foundEmails = text.match(emailRegex);
+  if (foundEmails) {
+    emails.push(...foundEmails);
+    console.log(`[extractContacts] ✅ Found ${foundEmails.length} emails`);
+  } else {
+    console.log("[extractContacts] ⚠️ No emails found");
+  }
 
-  // Normalize phone numbers (remove spaces/dashes, keep +)
-  const uniquePhones = [...new Set(rawPhones.map(p =>
-    p.replace(/[^+\d]/g, '') // remove non-digit, keep +
-  ))];
+  // Extract phone numbers
+  const foundPhones = text.match(phoneRegex);
+  if (foundPhones) {
+    phones.push(...foundPhones);
+    console.log(`[extractContacts] ✅ Found ${foundPhones.length} phone numbers`);
+  } else {
+    console.log("[extractContacts] ⚠️ No phone numbers found");
+  }
 
-  const uniqueEmails = [...new Set(rawEmails.map(e => e.trim().toLowerCase()))];
+  return { emails, phones };
+};
 
-  return {
-    emails: uniqueEmails,
-    phones: uniquePhones
-  };
-}
-
-module.exports = extractContacts;
+module.exports = { extractContacts };

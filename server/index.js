@@ -7,6 +7,8 @@ const scrapeProspects = require('./scrapers/scrapeProspects');
 
 const app = express();
 const PORT = 3000;
+const cors = require('cors'); //added cors
+app.use(cors());
 
 // Root route to confirm server is running
 app.get('/', (req, res) => {

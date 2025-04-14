@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const delay = ms => new Promise(res => setTimeout(res, ms));
+const applyStealth = require('../utils/stealthApply');// calling steathApply function
 
 /**
  * Scrapes Bing pages until no more results found
@@ -20,17 +21,8 @@ async function scrapeBingPages(browser, query, filterFn) {
 
   while (keepGoing && page < maxPages) {
     const tab = await browser.newPage();
-    // 🥷 Stealth mode injection – mask Puppeteer fingerprinting
-  await tab.evaluateOnNewDocument(() => {
-  Object.defineProperty(navigator, 'webdriver', { get: () => false });
-  Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-  Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-  Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4] });
-  window.chrome = {
-    runtime: {},
-    // Optional: mimic Chrome-specific props
-  };
-});
+    await applyStealth(tab);// inserted applyStealth
+
 
     await tab.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36');
 
@@ -40,7 +32,15 @@ async function scrapeBingPages(browser, query, filterFn) {
 
     try {
       await tab.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await tab.waitForSelector('#b_results', { timeout: 5000 });
+    
+      // 🧪 DEBUG: Take screenshot to inspect what Bing is really returning
+      await tab.screenshot({ path: `bing-page-${page + 1}.png`, fullPage: true });
+    
+      // 🧪 (Optional) Save full HTML for deeper inspection
+      const html = await tab.content();
+      fs.writeFileSync(`bing-page-${page + 1}.html`, html);
+    
+      await tab.waitForSelector('#b_results', { timeout: 5000 });    
 
       const pageResults = await tab.evaluate(() => {
         const blocks = document.querySelectorAll('li.b_algo');

@@ -1,8 +1,8 @@
 // scrapeProspects.js
 // Main orchestrator that handles the full prospect search + enrichment flow
 
-const puppeteer = require('puppeteer');
-const scrapeBingPages = require('./engines/bingEngine');
+const launchBrowser = require('../utils/browserLauncher'); //new launcher browser, where pupetter should take place here. 
+const getEngine = require('./engines'); //plug engine/index.js
 const { enrichInBatches } = require('./enrich/enrichInBatches');
 const filterByQuery = require('./enrich/filterByQuery');
 
@@ -15,15 +15,23 @@ const filterByQuery = require('./enrich/filterByQuery');
 async function scrapeProspects(query, options = {}) {
   console.log(`[scrapeProspects] Starting scrape for query: "${query}"`);
 
-  // Launch browser once for all tasks
-  const browser = await puppeteer.launch({
+  const browser = await launchBrowser({//launcher browser
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    autoStealthTab: false, // we’ll apply stealth manually in bingEngine
   });
-
+  
   try {
     // Step 1: Scrape Bing search results (default 3 pages)
-    const rawResults = await scrapeBingPages(browser, query);
+    const scrapeEngine = getEngine('bing'); // we’ll rotate/fallback this later
+    let rawResults = await scrapeEngine(browser, query);
+
+    //fallback if incase bing engine will not work. This is test code at the moment using as duckduckgo as teh backup.
+    if (!rawResults || rawResults.length === 0) {
+      console.warn('[scrapeProspects] ⚠️ No results from Bing. Falling back to DuckDuckGo...');
+      const fallbackEngine = getEngine('duck');
+      rawResults = await fallbackEngine(browser, query);
+    }    
+
     console.log(`[scrapeProspects] Scraped ${rawResults.length} raw results from Bing`);
 
     // Step 2: Filter the results based on keyword/industry/region match

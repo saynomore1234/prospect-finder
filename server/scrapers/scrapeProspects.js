@@ -1,8 +1,8 @@
 // scrapeProspects.js
 // Main orchestrator that handles the full prospect search + enrichment flow
 
-const launchBrowser = require('../utils/browserLauncher'); //new launcher browser, where pupetter should take place here. 
-const getEngine = require('./engines'); //plug engine/index.js
+const launchBrowser = require('../utils/browserLauncher'); // Handles Puppeteer browser launch
+const smartScraper = require('../utils/smartScraper');     // NEW: Smart wrapper with fallback, screenshot, retry
 const { enrichInBatches } = require('./enrich/enrichInBatches');
 const filterByQuery = require('./enrich/filterByQuery');
 
@@ -15,40 +15,40 @@ const filterByQuery = require('./enrich/filterByQuery');
 async function scrapeProspects(query, options = {}) {
   console.log(`[scrapeProspects] Starting scrape for query: "${query}"`);
 
-  const browser = await launchBrowser({//launcher browser
+  // 🚀 Launch browser using our stealth launcher
+  const browser = await launchBrowser({
     headless: 'new',
-    autoStealthTab: false, // we’ll apply stealth manually in bingEngine
+    autoStealthTab: false // We'll apply stealth manually per tab
   });
-  
+
   try {
-    // Step 1: Scrape Bing search results (default 3 pages)
-    const scrapeEngine = getEngine('bing'); // we’ll rotate/fallback this later
-    let rawResults = await scrapeEngine(browser, query);
+    // 🧠 Use smartScraper to:
+    // 1. Try multiple engines in order (bing, duck, brave, etc.)
+    // 2. Take screenshot if results are empty
+    // 3. Return the first successful engine + result set
+    const { engineUsed, results: rawResults } = await smartScraper(browser, query, ['bing', 'duck']);
 
-    //fallback if incase bing engine will not work. This is test code at the moment using as duckduckgo as teh backup.
-    if (!rawResults || rawResults.length === 0) {
-      console.warn('[scrapeProspects] ⚠️ No results from Bing. Falling back to DuckDuckGo...');
-      const fallbackEngine = getEngine('duck');
-      rawResults = await fallbackEngine(browser, query);
-    }    
+    console.log(`[scrapeProspects] Scraped ${rawResults.length} raw results from engine: ${engineUsed}`);
 
-    console.log(`[scrapeProspects] Scraped ${rawResults.length} raw results from Bing`);
-
-    // Step 2: Filter the results based on keyword/industry/region match
+    // 🔍 Filter the scraped results to only include relevant ones
     const filteredResults = filterByQuery(rawResults, {
       keyword: query,
       industry: options.industry,
       region: options.region
     });
+
     console.log(`[scrapeProspects] ${filteredResults.length} results passed relevance filtering`);
 
-    // Step 3: Enrich each filtered result in batches of 5
+    // 📦 Enrich results in batches (e.g., fetch extra details like emails, contact info)
     const enrichedResults = await enrichInBatches(browser, filteredResults, 5);
+
     console.log(`[scrapeProspects] Enrichment complete. Final results: ${enrichedResults.length}`);
 
-    // Return data in expected response format
+    // ✅ Return a consistent structure that includes the engine used
     return {
-      engine: 'bing',
+      query,
+      engineUsed,
+      engine: engineUsed, // For compatibility with older frontend structure
       totalFound: enrichedResults.length,
       results: enrichedResults
     };
@@ -56,6 +56,7 @@ async function scrapeProspects(query, options = {}) {
     console.error('[scrapeProspects] ❌ Error during scraping:', err);
     throw err;
   } finally {
+    // 🔒 Always close the browser to avoid memory leaks
     await browser.close();
   }
 }

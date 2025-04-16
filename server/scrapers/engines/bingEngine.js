@@ -22,8 +22,7 @@ async function scrapeBingPages(browser, query, filterFn) {
   while (keepGoing && page < maxPages) {
     const tab = await browser.newPage();
     await applyStealth(tab);// inserted applyStealth
-    return []; // ⛔ Simulate a Bing fail / no results
-
+   
     await tab.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36');
 
     const offset = page * 10 + 1;

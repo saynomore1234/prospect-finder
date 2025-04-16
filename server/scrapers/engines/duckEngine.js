@@ -24,6 +24,8 @@ async function scrapeDuckPages(browser, query) {
     await tab.waitForSelector('.results--main', { timeout: 5000 });
 
     console.log('[duckEngine] Selector found, scraping results...');
+    // 🧪 Save screenshot of what DuckDuckGo is returning to verify
+    //await tab.screenshot({ path: 'duck-fallback.png', fullPage: true });
 
     // 🧠 Scrape title, link, and snippet from search results
     const pageResults = await tab.evaluate(() => {

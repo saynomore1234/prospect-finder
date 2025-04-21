@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-// Our engine picker – lets us load 'bingEngine', 'duckEngine', etc.
+// Our engine picker – lets us load 'bingEngine', etc.
 const getEngine = require('../scrapers/engines');
 
 /**
@@ -18,13 +18,13 @@ const getEngine = require('../scrapers/engines');
  * @param {string} query - The search term to use
  * @param {Array<string>} engineList - List of engine names in order of priority
  */
-async function smartScraper(browser, query, engineList = ['bing', 'duck']) {
+async function smartScraper(browser, query, engineList = ['bing']) {
   // 🔁 Loop through all the engines you want to try
   for (const engineName of engineList) {
     console.log(`[smartScraper] 🔍 Trying engine: ${engineName}`);
 
     try {
-      // Load the actual scraping function for that engine (e.g. duckEngine.js)
+      // Load the actual scraping function for that engine (e.g. example.js)
       const scraper = getEngine(engineName);
 
       // Run the scraper and get back the search results
@@ -41,7 +41,8 @@ async function smartScraper(browser, query, engineList = ['bing', 'duck']) {
 
       // Open a tab to visually debug what the engine is seeing
       const fallbackTab = await browser.newPage();
-      const fallbackUrl = `https://www.${engineName}.com/search?q=${encodeURIComponent(query)}`;
+      const searchUrl = scraper.searchUrl || `https://www.${engineName}.com/search`;
+      const fallbackUrl = `${searchUrl}?q=${encodeURIComponent(query)}`;
       await fallbackTab.goto(fallbackUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
 
       // Save the screenshot for review

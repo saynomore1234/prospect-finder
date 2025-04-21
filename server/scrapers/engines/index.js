@@ -1,8 +1,8 @@
 // server/engines/index.js
 
 const scrapeBing = require('./bingEngine');
-const scrapeDuck = require('./duckEngine');    
-//const scrapeBrave = require('./braveEngine');    
+const scrapeMojeek = require('./mojeekEngine');
+const scrapeBrave = require('./braveEngine');    
 //const scrapeEcosia = require('./ecosiaEngine');  
 
 /**
@@ -13,12 +13,12 @@ function getEngine(engine = 'bing') {
   switch (engine) {
     case 'bing':
       return scrapeBing;
-    case 'duck':
-      return scrapeDuck;
+      case 'mojeek':
+  return scrapeMojeek;
     case 'brave':
       return scrapeBrave;
-    case 'ecosia':
-      return scrapeEcosia;
+    //case 'ecosia':
+      //return scrapeEcosia;
     default:
       console.warn(`[engineRouter] Unknown engine "${engine}", defaulting to Bing.`);
       return scrapeBing;

@@ -26,7 +26,7 @@ async function scrapeProspects(query, options = {}) {
     // 1. Try multiple engines in order (bing, duck, brave, etc.)
     // 2. Take screenshot if results are empty
     // 3. Return the first successful engine + result set
-    const { engineUsed, results: rawResults } = await smartScraper(browser, query, ['bing', 'duck']);
+    const { engineUsed, results: rawResults } = await smartScraper(browser, query, ['bing', 'mojeek']);
 
     console.log(`[scrapeProspects] Scraped ${rawResults.length} raw results from engine: ${engineUsed}`);
 

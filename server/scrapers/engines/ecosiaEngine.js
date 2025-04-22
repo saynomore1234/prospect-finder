@@ -27,15 +27,15 @@ async function scrapeEcosia(browser, query, filterFn) {
 
     try {
       await tab.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await tab.waitForSelector('.mainline-results', { timeout: 15000 });
+      await tab.waitForSelector('.mainline__result', { timeout: 15000 });
 
       const pageResults = await tab.evaluate(() => {
-        const blocks = document.querySelectorAll('.mainline-results article');
+        const blocks = document.querySelectorAll('.mainline_result-wrapper .mainline__result');
         const items = [];
 
         blocks.forEach(block => {
-          const title = block.querySelector('h2')?.innerText || '';
-          const link = block.querySelector('a.result-title')?.href || '';
+          const title = block.querySelector('.result-title')?.innerText || '';
+          const link = block.querySelector('.result-title')?.href || '';
           const snippet = block.querySelector('p')?.innerText || '';
 
           if (title && link) {
@@ -43,15 +43,16 @@ async function scrapeEcosia(browser, query, filterFn) {
           }
         });
 
-        return items;
+        return { items, found: blocks.length };
       });
 
-      console.log(`[ecosiaEngine] Page ${page + 1} returned ${pageResults.length} raw results`);
+      console.log(`[ecosiaEngine] Page ${page + 1} found ${pageResults.found} article blocks`);
+      console.log(`[ecosiaEngine] Page ${page + 1} returned ${pageResults.items.length} raw results`);
 
-      if (pageResults.length === 0) {
+      if (pageResults.items.length === 0) {
         keepGoing = false;
       } else {
-        const filtered = filterFn ? pageResults.filter(filterFn) : pageResults;
+        const filtered = filterFn ? pageResults.items.filter(filterFn) : pageResults.items;
         console.log(`[ecosiaEngine] Page ${page + 1}: ${filtered.length} passed filters`);
         results.push(...filtered);
       }
@@ -62,7 +63,7 @@ async function scrapeEcosia(browser, query, filterFn) {
     }
 
     page++;
-    await delay(1000);
+    await delay(2000);
   }
 
   console.log(`[ecosiaEngine] ✅ Done. Total filtered results: ${results.length}`);

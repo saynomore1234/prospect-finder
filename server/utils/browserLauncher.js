@@ -7,7 +7,7 @@ const puppeteer = require('puppeteer');
  */
 async function launchBrowser(options = {}) {
   const browser = await puppeteer.launch({
-    headless: options.headless || 'new',
+    headless: false,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 

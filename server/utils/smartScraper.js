@@ -1,66 +1,83 @@
-// server/utils/smartScraper.js
+// braveEngine.js – Scrape Brave search results with Puppeteer + Stealth
 
-// Built-in modules for saving screenshot file
-const fs = require('fs');
-const path = require('path');
-
-// Our engine picker – lets us load 'bingEngine', etc.
-const getEngine = require('../scrapers/engines');
+const applyStealth = require('./stealthApply');
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
 /**
- * Smart scraping wrapper that:
- * - Tries each engine in order
- * - Checks if the results are valid
- * - If 0 results, takes a screenshot for debug
- * - Returns { engineUsed, results }
- * 
+ * Scrapes Brave Search result pages
  * @param {object} browser - Puppeteer browser instance
- * @param {string} query - The search term to use
- * @param {Array<string>} engineList - List of engine names in order of priority
+ * @param {string} query - Search query
+ * @param {function} filterFn - Optional filtering function
+ * @returns {Array} - Clean filtered results
  */
-async function smartScraper(browser, query, engineList = ['bing']) {
-  // 🔁 Loop through all the engines you want to try
-  for (const engineName of engineList) {
-    console.log(`[smartScraper] 🔍 Trying engine: ${engineName}`);
+async function scrapeBrave(browser, query, filterFn) {
+  const results = [];
+  const maxPages = 20;
+  let page = 0;
+  let keepGoing = true;
+
+  while (keepGoing && page < maxPages) {
+    const tab = await browser.newPage();
+    await applyStealth(tab);
+
+    const offset = page * 10;
+    const url = `https://search.brave.com/search?q=${encodeURIComponent(query)}&offset=${offset}`;
+    console.log(`[braveEngine] Navigating to page ${page + 1}: ${url}`);
 
     try {
-      // Load the actual scraping function for that engine (e.g. example.js)
-      const scraper = getEngine(engineName);
+      await tab.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await delay(1500); // allow JS to load results
 
-      // Run the scraper and get back the search results
-      const results = await scraper(browser, query);
-
-      // ✅ If the scraper returned non-empty results, return it immediately
-      if (Array.isArray(results) && results.length > 0) {
-        console.log(`[smartScraper] ✅ Engine "${engineName}" succeeded with ${results.length} results`);
-        return { engineUsed: engineName, results };
+      // Detect if no results banner is shown
+      const noResults = await tab.evaluate(() => {
+        return document.body.innerText.includes("didn't find any results") || document.querySelector('#results') === null;
+      });
+      if (noResults) {
+        console.log(`[braveEngine] ⚠️ No results found on page ${page + 1}. Ending.`);
+        break;
       }
 
-      // ⚠️ If the engine returned 0 results, log warning and take screenshot
-      console.warn(`[smartScraper] ⚠️ Engine "${engineName}" returned 0 results. Taking screenshot...`);
+      // Scrape results under #results a[href] (bypasses dynamic class names)
+      const pageResults = await tab.evaluate(() => {
+        const anchors = document.querySelectorAll('#results a[href]');
+        const items = [];
 
-      // Open a tab to visually debug what the engine is seeing
-      const fallbackTab = await browser.newPage();
-      const searchUrl = scraper.searchUrl || `https://www.${engineName}.com/search`;
-      const fallbackUrl = `${searchUrl}?q=${encodeURIComponent(query)}`;
-      await fallbackTab.goto(fallbackUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        anchors.forEach(a => {
+          const title = a.innerText.trim();
+          const link = a.href;
+          const block = a.closest('div');
+          const snippet = block?.querySelector('p')?.innerText.trim() || '';
 
-      // Save the screenshot for review
-      const screenshotPath = path.join(process.cwd(), `fallback-${engineName}.png`);
-      await fallbackTab.screenshot({ path: screenshotPath, fullPage: true });
-      await fallbackTab.close();
+          if (title && link) {
+            items.push({ title, link, snippet });
+          }
+        });
 
-      console.log(`[smartScraper] 🧪 Screenshot saved for ${engineName} at ${screenshotPath}`);
+        return items;
+      });
+
+      console.log(`[braveEngine] Page ${page + 1} returned ${pageResults.length} raw results`);
+
+      if (pageResults.length === 0) {
+        keepGoing = false;
+      } else {
+        const filtered = filterFn ? pageResults.filter(filterFn) : pageResults;
+        console.log(`[braveEngine] Page ${page + 1}: ${filtered.length} passed filters`);
+        results.push(...filtered);
+      }
     } catch (err) {
-      // ❌ If something breaks during scraping (timeout, selector missing, etc.)
-      console.error(`[smartScraper] ❌ Error using engine "${engineName}":`, err.message);
+      console.error(`[braveEngine] ❌ Error on page ${page + 1}: ${err.message}`);
+    } finally {
+      await tab.close();
     }
+
+    page++;
+    await delay(2000);
   }
 
-  // ❌ If we looped through all engines and all failed
-  console.error('[smartScraper] ❌ All engines failed or returned 0 results.');
-  return { engineUsed: null, results: [] };
+  console.log(`[braveEngine] ✅ Done. Total filtered results: ${results.length}`);
+  return results;
 }
 
-// Export this so scrapeProspects can use it
-module.exports = smartScraper;
+scrapeBrave.searchUrl = 'https://search.brave.com/search';
+module.exports = scrapeBrave;

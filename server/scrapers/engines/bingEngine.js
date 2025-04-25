@@ -13,8 +13,6 @@ const applyStealth = require('../../utils/stealthApply'); // calling steathApply
  * @returns {Array} filteredResults - Cleaned result list to enrich
  */
 async function scrapeBingPages(browser, query, filterFn) {
-  console.log('[bingEngine] ⛔ Simulated failure — returning no results');
-  return [];
   const results = [];
   const maxPages = 20; // 🔒 safety cap (avoid infinite loop)
 

@@ -1,83 +1,56 @@
-// braveEngine.js – Scrape Brave search results with Puppeteer + Stealth
+// smartScraper.js – Bing-only scraping logic with fallback screenshot support
 
-const applyStealth = require('./stealthApply');
-const delay = ms => new Promise(res => setTimeout(res, ms));
+// Import Node.js built-in modules for saving a screenshot if scraping fails
+const fs = require('fs');
+const path = require('path');
+
+// Import your Bing engine directly (no more engine switching needed)
+const bingEngine = require('../scrapers/engines/bingEngine');
 
 /**
- * Scrapes Brave Search result pages
- * @param {object} browser - Puppeteer browser instance
- * @param {string} query - Search query
- * @param {function} filterFn - Optional filtering function
- * @returns {Array} - Clean filtered results
+ * Main scraper logic — uses Bing only.
+ * - Scrapes using Bing
+ * - Filters results if a filterFn is provided
+ * - Takes screenshot if Bing returns 0 results (for debug)
+ *
+ * @param {object} browser - Puppeteer browser instance passed from your backend
+ * @param {string} query - Search keyword or phrase
+ * @param {function|null} filterFn - Optional filter (e.g., only keep results with "SEO")
+ * @returns {object} - { engineUsed: 'bing', results: [...] }
  */
-async function scrapeBrave(browser, query, filterFn) {
-  const results = [];
-  const maxPages = 20;
-  let page = 0;
-  let keepGoing = true;
+async function smartScraper(browser, query, filterFn = null) {
+  console.log(`[smartScraper] 🔍 Scraping via Bing for: "${query}"`);
 
-  while (keepGoing && page < maxPages) {
-    const tab = await browser.newPage();
-    await applyStealth(tab);
+  try {
+    // Call Bing scraping engine with query and optional filter
+    const results = await bingEngine(browser, query, filterFn);
 
-    const offset = page * 10;
-    const url = `https://search.brave.com/search?q=${encodeURIComponent(query)}&offset=${offset}`;
-    console.log(`[braveEngine] Navigating to page ${page + 1}: ${url}`);
-
-    try {
-      await tab.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await delay(1500); // allow JS to load results
-
-      // Detect if no results banner is shown
-      const noResults = await tab.evaluate(() => {
-        return document.body.innerText.includes("didn't find any results") || document.querySelector('#results') === null;
-      });
-      if (noResults) {
-        console.log(`[braveEngine] ⚠️ No results found on page ${page + 1}. Ending.`);
-        break;
-      }
-
-      // Scrape results under #results a[href] (bypasses dynamic class names)
-      const pageResults = await tab.evaluate(() => {
-        const anchors = document.querySelectorAll('#results a[href]');
-        const items = [];
-
-        anchors.forEach(a => {
-          const title = a.innerText.trim();
-          const link = a.href;
-          const block = a.closest('div');
-          const snippet = block?.querySelector('p')?.innerText.trim() || '';
-
-          if (title && link) {
-            items.push({ title, link, snippet });
-          }
-        });
-
-        return items;
-      });
-
-      console.log(`[braveEngine] Page ${page + 1} returned ${pageResults.length} raw results`);
-
-      if (pageResults.length === 0) {
-        keepGoing = false;
-      } else {
-        const filtered = filterFn ? pageResults.filter(filterFn) : pageResults;
-        console.log(`[braveEngine] Page ${page + 1}: ${filtered.length} passed filters`);
-        results.push(...filtered);
-      }
-    } catch (err) {
-      console.error(`[braveEngine] ❌ Error on page ${page + 1}: ${err.message}`);
-    } finally {
-      await tab.close();
+    // ✅ If results exist, return them
+    if (Array.isArray(results) && results.length > 0) {
+      console.log(`[smartScraper] ✅ Bing returned ${results.length} result(s)`);
+      return { engineUsed: 'bing', results };
     }
 
-    page++;
-    await delay(2000);
-  }
+    // ⚠️ If no results were found, take screenshot for debugging
+    console.warn('[smartScraper] ⚠️ No results found – taking fallback screenshot...');
 
-  console.log(`[braveEngine] ✅ Done. Total filtered results: ${results.length}`);
-  return results;
+    // Open new tab to capture what Bing is showing visually
+    const tab = await browser.newPage();
+    const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+    await tab.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+
+    // Save screenshot in root folder (or logs/screenshots later)
+    const screenshotPath = path.join(process.cwd(), 'fallback-bing.png');
+    await tab.screenshot({ path: screenshotPath, fullPage: true });
+
+    await tab.close(); // Always close Puppeteer tabs
+    return { engineUsed: 'bing', results: [] }; // Still return structure even with no results
+  } catch (err) {
+    // ❌ If the Bing engine throws an error (e.g., timeout, selector error), log it and return empty
+    console.error(`[smartScraper] ❌ Bing scraping failed: ${err.message}`);
+    return { engineUsed: null, results: [] };
+  }
 }
 
-scrapeBrave.searchUrl = 'https://search.brave.com/search';
-module.exports = scrapeBrave;
+// Export the function so scrapeProspects.js or any route can call it
+module.exports = smartScraper;

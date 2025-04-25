@@ -1,54 +1,55 @@
-// scrapeProspects.js
-// Main orchestrator that handles the full prospect search + enrichment flow
+// scrapeProspects.js – Main orchestrator: search → filter → enrich → return results
 
-const launchBrowser = require('../utils/browserLauncher'); // Handles Puppeteer browser launch
-const smartScraper = require('../utils/smartScraper');     // NEW: Smart wrapper with fallback, screenshot, retry
+const launchBrowser = require('../utils/browserLauncher');
+const smartScraper = require('../utils/smartScraper'); // Our Bing-only smart wrapper
 const { enrichInBatches } = require('./enrich/enrichInBatches');
 const filterByQuery = require('./enrich/filterByQuery');
 
 /**
- * Main function to search, filter, enrich, and return full results
- * @param {string} query - User's search term (e.g., "seo expert philippines")
- * @param {object} options - Optional filters like industry/region
- * @returns {object} - Final enriched results object
+ * Main function that:
+ * 1. Scrapes using Bing
+ * 2. Filters results based on keyword, industry, region
+ * 3. Enriches results with contact info
+ * 4. Returns full structured output
+ * 
+ * @param {string} query - The user’s search term (e.g. "seo consultant new york")
+ * @param {object} options - Optional filters (industry, region)
+ * @returns {object} - Final enriched results for frontend
  */
 async function scrapeProspects(query, options = {}) {
   console.log(`[scrapeProspects] Starting scrape for query: "${query}"`);
 
-  // 🚀 Launch browser using our stealth launcher
+  // 🚀 Launch Puppeteer with stealth settings
   const browser = await launchBrowser({
     headless: 'new',
-    autoStealthTab: false // We'll apply stealth manually per tab
+    autoStealthTab: false
   });
 
   try {
-    // 🧠 Use smartScraper to:
-    // 1. Try multiple engines in order (bing, duck, brave, etc.)
-    // 2. Take screenshot if results are empty
-    // 3. Return the first successful engine + result set
-    const { engineUsed, results: rawResults } = await smartScraper(browser, query, ['bing', 'ecosia']);
+    // 🧠 Smart wrapper (Bing only) – returns { engineUsed, results }
+    const { engineUsed, results: rawResults } = await smartScraper(browser, query);
 
-    console.log(`[scrapeProspects] Scraped ${rawResults.length} raw results from engine: ${engineUsed}`);
+    console.log(`[scrapeProspects] Scraped ${rawResults.length} raw results using: ${engineUsed}`);
 
-    // 🔍 Filter the scraped results to only include relevant ones
+    // 🔍 Filter results by keyword, region, and/or industry
     const filteredResults = filterByQuery(rawResults, {
       keyword: query,
       industry: options.industry,
       region: options.region
     });
 
-    console.log(`[scrapeProspects] ${filteredResults.length} results passed relevance filtering`);
+    console.log(`[scrapeProspects] ${filteredResults.length} results passed filtering`);
 
-    // 📦 Enrich results in batches (e.g., fetch extra details like emails, contact info)
+    // 📦 Enrich results (e.g. extract emails, socials, etc.)
     const enrichedResults = await enrichInBatches(browser, filteredResults, 5);
 
     console.log(`[scrapeProspects] Enrichment complete. Final results: ${enrichedResults.length}`);
 
-    // ✅ Return a consistent structure that includes the engine used
+    // ✅ Return consistent structure
     return {
       query,
       engineUsed,
-      engine: engineUsed, // For compatibility with older frontend structure
+      engine: engineUsed,
       totalFound: enrichedResults.length,
       results: enrichedResults
     };
@@ -56,8 +57,7 @@ async function scrapeProspects(query, options = {}) {
     console.error('[scrapeProspects] ❌ Error during scraping:', err);
     throw err;
   } finally {
-    // 🔒 Always close the browser to avoid memory leaks
-    await browser.close();
+    await browser.close(); // 🔒 Ensure browser is closed after run
   }
 }
 

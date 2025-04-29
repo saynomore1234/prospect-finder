@@ -1,6 +1,6 @@
 // Enrich a single result by visiting the linked page and extracting content
 // enrichFromPage.js
-const { extractContacts } = require('./extractContacts');
+const { extractContacts } = require('./extractDetails');
 
 async function enrichFromPage(tab, result) {
   console.log(`[enrichFromPage] Visiting: ${result.link}`);
@@ -25,11 +25,11 @@ async function enrichFromPage(tab, result) {
     });
 
     console.log(`[enrichFromPage] Extracted intro + raw body from: ${result.link}`);
-    console.log(`[extractContacts] Raw input text: ${rawBody?.slice(0, 100)}...`);
+    console.log(`[extractDetails] Raw input text: ${rawBody?.slice(0, 100)}...`);
 
     const { emails, phones } = extractContacts(rawBody || '');
 
-    console.log(`[extractContacts] ✅ Found ${emails.length} emails, ${phones.length} phones`);
+    console.log(`[extractDetails] ✅ Found ${emails.length} emails, ${phones.length} phones`);
 
     return {
       ...result,

@@ -1,14 +1,11 @@
 import { useState } from 'react';
 
 export default function ProspectFinder() {
-  // Store the query text
   const [query, setQuery] = useState('');
-  // Store results returned from backend
   const [results, setResults] = useState([]);
-  // Track loading state
   const [loading, setLoading] = useState(false);
+  const [expandedRow, setExpandedRow] = useState(null); // 📦 Track which row is expanded
 
-  // Handle form submission
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -30,6 +27,11 @@ export default function ProspectFinder() {
     }
   };
 
+  const toggleExpand = (index) => {
+    // 🧠 If clicking same row, collapse it. If clicking different, expand new one.
+    setExpandedRow(expandedRow === index ? null : index);
+  };
+
   return (
     <div className="min-h-screen bg-white text-gray-800 p-8">
       {/* Header */}
@@ -41,7 +43,7 @@ export default function ProspectFinder() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search for companies, industries, or keywords..."
+          placeholder="Search keywords..."
           className="border border-gray-300 px-4 py-2 rounded-l-md w-1/2"
         />
         <button
@@ -74,21 +76,63 @@ export default function ProspectFinder() {
             </thead>
             <tbody>
               {results.map((prospect, idx) => (
-                <tr key={idx} className="text-center">
-                  <td className="border px-4 py-2">{prospect.name || '—'}</td>
-                  <td className="border px-4 py-2">{prospect.title || '—'}</td>
-                  <td className="border px-4 py-2">
-                    {prospect.website ? (
-                      <a href={prospect.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                        {prospect.website.replace(/^https?:\/\//, '')}
-                      </a>
-                    ) : '—'}
-                  </td>
-                  <td className="border px-4 py-2">{prospect.email || '—'}</td>
-                  <td className="border px-4 py-2">{prospect.phone || '—'}</td>
-                  <td className="border px-4 py-2">{prospect.region || '—'}</td>
-                  <td className="border px-4 py-2">{prospect.industry || '—'}</td>
-                </tr>
+                <>
+                  {/* Main Row */}
+                  <tr key={idx} onClick={() => toggleExpand(idx)} className="text-center hover:bg-gray-100 cursor-pointer">
+                    <td className="border px-4 py-2">{prospect.name || '—'}</td>
+                    <td className="border px-4 py-2">{prospect.title || '—'}</td>
+                    <td className="border px-4 py-2">
+                      {prospect.website ? (
+                        <a href={prospect.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                          {prospect.website.replace(/^https?:\/\//, '')}
+                        </a>
+                      ) : '—'}
+                    </td>
+                    <td className="border px-4 py-2">
+                      {prospect.emails && prospect.emails.length > 0 ? prospect.emails[0] : '—'}
+                    </td>
+                    <td className="border px-4 py-2">
+                      {prospect.phones && prospect.phones.length > 0 ? prospect.phones[0] : '—'}
+                    </td>
+                    <td className="border px-4 py-2">{prospect.region || '—'}</td>
+                    <td className="border px-4 py-2">{prospect.industry || '—'}</td>
+                  </tr>
+
+                  {/* Expanded Row */}
+                  {expandedRow === idx && (
+                    <tr>
+                      <td colSpan="7" className="bg-gray-50 p-4 text-left">
+                        {/* Expanded content */}
+                        <div className="space-y-2">
+                          <div>
+                            <strong>📧 Emails:</strong>
+                            <ul className="list-disc list-inside">
+                              {(prospect.emails && prospect.emails.length > 0) ? (
+                                prospect.emails.map((email, emailIdx) => (
+                                  <li key={emailIdx}>{email}</li>
+                                ))
+                              ) : (
+                                <li>—</li>
+                              )}
+                            </ul>
+                          </div>
+                          <div>
+                            <strong>📞 Phones:</strong>
+                            <ul className="list-disc list-inside">
+                              {(prospect.phones && prospect.phones.length > 0) ? (
+                                prospect.phones.map((phone, phoneIdx) => (
+                                  <li key={phoneIdx}>{phone}</li>
+                                ))
+                              ) : (
+                                <li>—</li>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>

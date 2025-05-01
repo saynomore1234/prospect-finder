@@ -43,23 +43,25 @@ const extractNameFromTitle = (title) => {
 };
 
 // 🏢 Try extracting company name from title or link
-const extractCompanyFromTitleOrLink = (title, link) => {
-  if (!title && !link) return '';
-
-  // Prefer splitting title first
-  const titleParts = title.split('|');
-  if (titleParts.length > 1) {
-    return titleParts[1].trim();
-  }
-
-  // Fallback to domain from link
+function extractCompanyFromTitleOrLink(title, link) {
+  // ✅ Prefer domain from link if available
   try {
-    const url = new URL(link);
-    return url.hostname.replace('www.', '');
+    if (link) {
+      const domain = new URL(link).hostname.replace(/^www\\./, '');
+      return domain;
+    }
   } catch (err) {
-    return '';
+    // Continue to fallback
   }
-};
+
+  // 🧭 Fallback: Try extracting company name from title (after dash or pipe)
+  const parts = title.split(/[-|]/).map(part => part.trim());
+  if (parts.length > 1) {
+    return parts[1]; // Usually format is: "CEO at Acme Corp – Home"
+  }
+
+  return '';
+}
 
 // 👔 Try extracting simple job title keywords from snippet
 const extractJobTitleFromSnippet = (snippet) => {

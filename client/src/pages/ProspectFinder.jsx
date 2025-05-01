@@ -82,11 +82,12 @@ export default function ProspectFinder() {
                     <td className="border px-4 py-2">{prospect.name || '—'}</td>
                     <td className="border px-4 py-2">{prospect.title || '—'}</td>
                     <td className="border px-4 py-2">
-                      {prospect.website ? (
-                        <a href={prospect.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                          {prospect.website.replace(/^https?:\/\//, '')}
-                        </a>
+                    {prospect.link ? (
+                     <a href={prospect.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                    {new URL(prospect.link).hostname}
+                     </a>
                       ) : '—'}
+
                     </td>
                     <td className="border px-4 py-2">
                       {prospect.emails && prospect.emails.length > 0 ? prospect.emails[0] : '—'}

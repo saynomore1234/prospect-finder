@@ -1,5 +1,6 @@
 // enrichInBatches.js
 const { enrichFromPage } = require('./enrichFromPage');
+const applyStealth = require('../../utils/stealthApply');
 
 async function enrichInBatches(browser, results, batchSize = 5) {
   const enrichedResults = [];
@@ -15,6 +16,7 @@ async function enrichInBatches(browser, results, batchSize = 5) {
         let tab;
         try {
           tab = await browser.newPage(); // Create new tab for each result
+          await applyStealth(tab);       // 🛡️ Apply stealth
           console.log(`[enrichInBatches] Tab opened for result ${i + index + 1}`);
           const enriched = await enrichFromPage(tab, result);
           return enriched;

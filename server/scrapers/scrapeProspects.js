@@ -24,6 +24,10 @@ const {
  * @param {object} options - Optional filters (industry, region)
  * @returns {object} - Final enriched results for frontend
  */
+// 🧠 Auto-enhance query to bias Bing toward profile-based results
+function expandQueryForProfiles(userQuery) {
+  return `(${userQuery}) inurl:about OR inurl:team OR inurl:staff OR inurl:people OR inurl:profile OR "our team" OR "meet the team" OR "company profile" OR "员工" OR "关于我们" OR "专家" OR "团队" OR "会社概要" OR "チーム" OR "เกี่ยวกับเรา"`;
+}
 async function scrapeProspects(query, options = {}) {
   console.log(`[scrapeProspects] Starting scrape for query: "${query}"`);
 
@@ -33,7 +37,8 @@ async function scrapeProspects(query, options = {}) {
   });
 
   try {
-    const { engineUsed, results: rawResults } = await smartScraper(browser, query);
+    const enhancedQuery = expandQueryForProfiles(query);
+    const { engineUsed, results: rawResults } = await smartScraper(browser, enhancedQuery);
 
     console.log(`[scrapeProspects] Scraped ${rawResults.length} raw results using: ${engineUsed}`);
 

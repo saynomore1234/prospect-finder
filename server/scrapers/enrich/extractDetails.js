@@ -1,69 +1,50 @@
 // extractDetails.js
 // 📦 Helper functions for enriching scraped prospect details
 
-// 📧 Extract emails and 📞 phones from text using your intentionally loose regex
+// 📧 Extract emails and 📞 phones from text using intentionally loose regex
 const extractContacts = (text) => {
-  console.log("[extractContacts] Raw input text:", text.slice(0, 300), '...');
-
   const emails = [];
   const phones = [];
 
-  // Loose email regex
   const emailRegex = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
-
-  // Loose phone regex (international + local)
   const phoneRegex = /(?:\+?\d{1,4}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}/g;
 
-  // Extract emails
   const foundEmails = text.match(emailRegex);
-  if (foundEmails) {
-    emails.push(...foundEmails);
-    console.log(`[extractContacts] ✅ Found ${foundEmails.length} emails`);
-  } else {
-    console.log("[extractContacts] ⚠️ No emails found");
-  }
+  if (foundEmails) emails.push(...foundEmails);
 
-  // Extract phones
   const foundPhones = text.match(phoneRegex);
-  if (foundPhones) {
-    phones.push(...foundPhones);
-    console.log(`[extractContacts] ✅ Found ${foundPhones.length} phone numbers`);
-  } else {
-    console.log("[extractContacts] ⚠️ No phone numbers found");
-  }
+  if (foundPhones) phones.push(...foundPhones);
 
   return { emails, phones };
 };
 
-// 📛 Try extracting person's name from title (basic splitting)
+// 📛 Extracts a possible name from the title bar (basic string slicing)
 const extractNameFromTitle = (title) => {
   if (!title) return '';
   const parts = title.split('|')[0].split('-')[0].trim();
   return parts;
 };
 
-// 🏢 Try extracting company name from title or link
+// 🏢 Uses the page title or domain to guess a company name
 function extractCompanyFromTitleOrLink(title, link) {
-  // ✅ Prefer domain from link if available
   try {
     if (link) {
-      const domain = new URL(link).hostname.replace(/^www\\./, '');
+      const domain = new URL(link).hostname.replace(/^www\./, '');
       return domain;
     }
   } catch (err) {
-    // Continue to fallback
+    // fallback continues
   }
 
-  // 🧭 Fallback: Try extracting company name from title (after dash or pipe)
   const parts = title.split(/[-|]/).map(part => part.trim());
   if (parts.length > 1) {
-    return parts[1]; // Usually format is: "CEO at Acme Corp – Home"
+    return parts[1];
   }
 
   return '';
 }
 
-// 👔 Try extracting simple job title keywords from snippet
+// 👔 Pulls a keyword-style job title from snippet (if available)
 const extractJobTitleFromSnippet = (snippet) => {
   if (!snippet) return '';
   const jobKeywords = ['CEO', 'Founder', 'Director', 'Manager', 'Consultant', 'Engineer', 'Developer', 'President'];
@@ -77,10 +58,28 @@ const extractJobTitleFromSnippet = (snippet) => {
   return '';
 };
 
-// 📤 Export all functions cleanly
+// 🧠 NEW FUNCTION: Attempts to parse a real human name + title from raw paragraph text
+function extractProspectFromText(text) {
+  // Looks for a structure like: "John Dela Cruz is the IT Manager at..."
+  const regex = /([A-Z][a-z]+(?: [A-Z][a-z]+)+)[,\s]+(?:is|serves as|works as|has been)?\s*(?:the)?\s*(CEO|Founder|Manager|Director|Consultant|Engineer|Developer|President)\b/i;
+
+  const match = text.match(regex);
+  if (match) {
+    return {
+      prospectName: match[1]?.trim() || '',
+      prospectTitle: match[2]?.trim() || '',
+      company: '' // Optional: can be improved with "at XYZ Corp" logic
+    };
+  }
+
+  return { prospectName: '', prospectTitle: '', company: '' };
+}
+
+// 📤 Export all helper functions
 module.exports = {
   extractContacts,
   extractNameFromTitle,
   extractCompanyFromTitleOrLink,
-  extractJobTitleFromSnippet
+  extractJobTitleFromSnippet,
+  extractProspectFromText // ✅ NEW EXPORT
 };

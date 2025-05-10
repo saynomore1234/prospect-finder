@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 
 // 🔍 Minimalist Prospect Finder UI Component with post-search filters
 export default function ProspectFinder() {
@@ -12,16 +12,17 @@ export default function ProspectFinder() {
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('');
   const [abortController, setAbortController] = useState(null);
+  const requestIdRef = useRef(0); // 🆔 Track which request is the latest
 
   // 🔍 Main search handler
   const handleSearch = async (e) => {
     e.preventDefault();
-    
-   // ✅ Abort any previous request before starting new one
-if (abortController) {
-  abortController.abort();
-  setAbortController(null);
-}
+
+    // ✅ Abort any previous request
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
 
     if (!query.trim()) return;
 
@@ -33,12 +34,18 @@ if (abortController) {
       const controller = new AbortController();
       setAbortController(controller);
 
+      // 🆔 Create and store a unique request ID
+      const thisRequestId = Date.now();
+      requestIdRef.current = thisRequestId;
+
       const response = await fetch(`http://localhost:3000/search?q=${encodeURIComponent(query)}`, {
         signal: controller.signal,
       });
+
       const data = await response.json();
 
-      if (data.results) {
+      // ✅ Only allow update if request ID matches
+      if (requestIdRef.current === thisRequestId && data.results) {
         setResults(data.results);
         setFilteredResults(data.results);
       }
@@ -52,16 +59,16 @@ if (abortController) {
     }
   };
 
-// 🛑 Cancel fetch
-const handleCancelSearch = () => {
-  if (abortController) {
-    abortController.abort();
-    setAbortController(null);
-    setLoading(false);
-    setResults([]);           // optional: clear out previous partial data
-    setFilteredResults([]);   // optional: clear filtered view
-  }
-};
+  // 🛑 Cancel fetch
+  const handleCancelSearch = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setLoading(false);
+      setResults([]);
+      setFilteredResults([]);
+    }
+  };
 
   // 🧹 Clear filters
   const clearFilters = () => {

@@ -67,6 +67,9 @@ export default function ProspectFinder() {
       setLoading(false);
       setResults([]);
       setFilteredResults([]);
+  
+      // 🔗 NEW: Call backend to stop scraping job
+      fetch('http://localhost:3000/cancel', { method: 'POST' });
     }
   };
 

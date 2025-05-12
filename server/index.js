@@ -1,14 +1,17 @@
 // index.js
 const express = require('express');
 const path = require('path');
+const cors = require('cors'); // added cors
 
-// ✅ Require the scraper properly (from scrapers folder)
+// ✅ Require the scraper and active job tracker
 const scrapeProspects = require('./scrapers/scrapeProspects');
+const { closeBrowser } = require('./utils/activeJob'); // ✅ correct
 
 const app = express();
 const PORT = 3000;
-const cors = require('cors'); //added cors
+
 app.use(cors());
+app.use(express.json()); // For future use if you ever need JSON POSTs
 
 // Root route to confirm server is running
 app.get('/', (req, res) => {
@@ -34,6 +37,17 @@ app.get('/search', async (req, res) => {
   } catch (err) {
     console.error('❌ Scraping error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ NEW: Cancel scraping route
+app.post('/cancel', async (req, res) => {
+  try {
+    await closeBrowser(); // 💥 Close the active Puppeteer instance
+    res.status(200).json({ message: 'Scraping cancelled.' });
+  } catch (err) {
+    console.error('[cancel] Error:', err.message);
+    res.status(500).json({ error: 'Failed to cancel scraping job.' });
   }
 });
 

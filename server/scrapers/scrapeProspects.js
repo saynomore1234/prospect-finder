@@ -4,6 +4,7 @@ const launchBrowser = require('../utils/browserLauncher');
 const smartScraper = require('../utils/smartScraper'); // Our Bing-only smart wrapper
 const { enrichInBatches } = require('./enrich/enrichInBatches');
 const filterByQuery = require('./enrich/filterByQuery');
+const { setBrowser } = require('../utils/activeJob'); // ✅ correct path
 
 // 🧠 Import new enrichers
 const { 
@@ -13,21 +14,11 @@ const {
   extractJobTitleFromSnippet
 } = require('./enrich/extractDetails');
 
-/**
- * Main function that:
- * 1. Scrapes using Bing
- * 2. Filters results based on keyword, industry, region
- * 3. Enriches results with contact info and company info
- * 4. Returns full structured output
- * 
- * @param {string} query - The user’s search term (e.g. "seo consultant new york")
- * @param {object} options - Optional filters (industry, region)
- * @returns {object} - Final enriched results for frontend
- */
 // 🧠 Auto-enhance query to bias Bing toward profile-based results
 function expandQueryForProfiles(userQuery) {
   return `(${userQuery}) inurl:about OR inurl:team OR inurl:staff OR inurl:people OR inurl:profile OR "our team" OR "meet the team" OR "company profile" OR "员工" OR "关于我们" OR "专家" OR "团队" OR "会社概要" OR "チーム" OR "เกี่ยวกับเรา"`;
 }
+
 async function scrapeProspects(query, options = {}) {
   console.log(`[scrapeProspects] Starting scrape for query: "${query}"`);
 
@@ -35,6 +26,8 @@ async function scrapeProspects(query, options = {}) {
     headless: 'new',
     autoStealthTab: false
   });
+
+  setBrowser(browser); // ✅ NEW: store this browser for cancel access
 
   try {
     const enhancedQuery = expandQueryForProfiles(query);
@@ -86,7 +79,7 @@ async function scrapeProspects(query, options = {}) {
     console.error('[scrapeProspects] ❌ Error during scraping:', err);
     throw err;
   } finally {
-    await browser.close(); // 🔒 Always close browser
+    await browser.close(); // 🔒 Always close browser at the end
   }
 }
 
